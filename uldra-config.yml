@@ -1,0 +1,45 @@
+workerCount: 16
+wokerQueueSize: 500
+exporterPort: 42000
+
+binlogServer: 127.0.0.1:3306
+binlogServerID: 5
+binlogServerUsername: repl
+binlogServerPassword: repl
+binlogInfoFile: "binlog.info"
+
+binlogPolicies:
+- name: origin.s_user
+  partitionKey: userid
+  replicatPolicies:
+  - name: "t_user"
+    softDelete: true
+    upsertMode: true
+  - name: "t_user1"
+    softDelete: true
+    upsertMode: true
+    colums: ["userid", "name", "phone:cell", "reg_dttm", "mod_tmsp"]
+- name: origin.s_user_status
+  partitionKey: userid
+  replicatPolicies:
+  - name: "t_user_status"
+  - name: "t_user_ext"
+    colums: ["userid", "login_dttm", "login_cnt", "reg_dttm", "mod_tmsp"]
+
+targetDataSource: !!org.apache.commons.dbcp2.BasicDataSource
+  driverClassName: com.mysql.jdbc.Driver
+  url: jdbc:mysql://127.0.0.1:3306/target?autoReconnect=true&cacheServerConfiguration=true&useLocalSessionState=true&elideSetAutoCommits=true&connectTimeout=3000&socketTimeout=60000&useSSL=false&useAffectedRows=true&cacheCallableStmts=true&noAccessToProcedureBodies=true&characterEncoding=utf8&characterSetResults=utf8&connectionCollation=utf8_bin&sessionVariables=SQL_MODE='NO_AUTO_VALUE_ON_ZERO'
+  username: target
+  password: target
+  maxTotal: 30
+  maxWaitMillis: 100
+  validationQuery: SELECT 1
+  testOnBorrow: false
+  testOnReturn: false
+  testWhileIdle: true
+  timeBetweenEvictionRunsMillis: 60000
+  minEvictableIdleTimeMillis : 1200000
+  numTestsPerEvictionRun : 10
+
+targetHandlerClassName: "net.gywn.binlog.dbms.UldraMysqlApplier"
+targetHandlerParamFile: "uldra-mysql-applier.yml"

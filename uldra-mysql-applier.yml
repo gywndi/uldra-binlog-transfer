@@ -1,0 +1,14 @@
+dataSource: !!org.apache.commons.dbcp2.BasicDataSource
+  driverClassName: com.mysql.jdbc.Driver
+  url: jdbc:mysql://127.0.0.1:3306/origin?autoReconnect=true&cacheServerConfiguration=true&useLocalSessionState=true&elideSetAutoCommits=true&connectTimeout=3000&socketTimeout=60000&useSSL=false&useAffectedRows=true&cacheCallableStmts=true&noAccessToProcedureBodies=true&characterEncoding=utf8&characterSetResults=utf8&connectionCollation=utf8_bin&sessionVariables=SQL_MODE='NO_AUTO_VALUE_ON_ZERO'
+  username: origin
+  password: origin
+  maxTotal: 30
+  maxWaitMillis: 100
+  validationQuery: SELECT 1
+  testOnBorrow: false
+  testOnReturn: false
+  testWhileIdle: true
+  timeBetweenEvictionRunsMillis: 60000
+  minEvictableIdleTimeMillis : 1200000
+  numTestsPerEvictionRun : 10
