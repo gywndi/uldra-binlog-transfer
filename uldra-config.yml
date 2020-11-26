@@ -42,4 +42,4 @@ targetDataSource: !!org.apache.commons.dbcp2.BasicDataSource
   numTestsPerEvictionRun : 10
 
 targetHandlerClassName: "net.gywn.binlog.dbms.UldraMysqlApplier"
-targetHandlerParamFile: "uldra-mysql-applier.yml"
+#targetHandlerParamFile: "uldra-mysql-applier.yml"

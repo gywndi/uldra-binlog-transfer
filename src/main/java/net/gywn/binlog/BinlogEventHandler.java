@@ -158,9 +158,6 @@ public class BinlogEventHandler {
 				logger.info("Parse binlog failed, set current position: " + sourceBinlog);
 			}
 
-			currntBinlog = new Binlog("binlog.000001:155");
-			targetBinlog = new Binlog("binlog.000001:14483");
-
 			if (currntBinlog == null) {
 				currntBinlog = sourceBinlog;
 			}

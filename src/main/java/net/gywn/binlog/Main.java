@@ -2,6 +2,7 @@ package net.gywn.binlog;
 
 import java.util.concurrent.Callable;
 
+import net.gywn.binlog.beans.Binlog;
 import net.gywn.binlog.common.UldraConfig;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
@@ -23,7 +24,7 @@ public class Main implements Callable<Integer> {
 	public static void main(String[] args) {
 		Main main = new Main();
 		if (args.length == 0) {
-//			args = new String[] { "--config-file", "uldra-config.yml", "--binlog-info", "test.0001  :4" };
+//			args = new String[] { "--config-file", "uldra-config.yml", "--binlog-info", "binlog.000001:155,binlog.000001:14483" };
 			args = new String[] { "--config-file", "uldra-config.yml" };
 		}
 		Integer exitCode = new CommandLine(main).execute(args);
