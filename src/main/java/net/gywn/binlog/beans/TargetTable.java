@@ -9,7 +9,6 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 import lombok.Getter;
 import lombok.ToString;
 import net.gywn.binlog.common.ReplicatPolicy;
@@ -60,7 +59,7 @@ public class TargetTable {
 			logger.debug("{} set soft delete mode}", name, columnMapper);
 			delete = TargetOpType.SOFT_DELETE;
 		}
-		
+
 		logger.info("TargetTable {}", this);
 	}
 
@@ -77,7 +76,7 @@ public class TargetTable {
 				resultMap.put(columnNew, map.get(column));
 			}
 		}
-		
+
 		logger.debug("Target data map {}", resultMap);
 		return resultMap;
 	}
