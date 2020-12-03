@@ -43,7 +43,7 @@ public class BinlogEventWorker {
 				queue.add(tx);
 				break;
 			} catch (Exception e) {
-				logger.error("Enqueue error", e.getMessage());
+//				logger.error("Enqueue error", e.getMessage());
 				UldraUtil.sleep(100);
 			}
 		}
@@ -104,7 +104,7 @@ public class BinlogEventWorker {
 
 	}
 
-	private void transactionStart(BinlogTransaction tx) throws SQLException {
+	private void transactionStart(BinlogTransaction tx) throws Exception {
 		logger.debug("transactionStart()");
 		tx.setConnection(targetDataSource.getConnection());
 		if (tx.isTransactional()) {
@@ -112,22 +112,26 @@ public class BinlogEventWorker {
 		}
 	}
 
-	private void transactionCommit(BinlogTransaction tx) throws SQLException {
+	private void transactionCommit(BinlogTransaction tx) throws Exception {
 		logger.debug("transactionCommit()");
-		if (tx.isTransactional()) {
-			targetHandler.commit(tx.getConnection());
+		try {
+			if (tx.isTransactional()) {
+				targetHandler.commit(tx.getConnection());
+			}
+		} finally {
 			tx.close();
 		}
 	}
 
 	private void transactionRollback(BinlogTransaction tx) {
 		logger.debug("transactionRollback()");
-		if (tx.isTransactional()) {
-			try {
+		try {
+			if (tx.isTransactional()) {
 				targetHandler.rollback(tx.getConnection());
-			} catch (SQLException e) {
-				logger.error("Rollback error", e.getMessage());
 			}
+		} catch (Exception e) {
+			logger.error("Rollback error", e.getMessage());
+		} finally {
 			tx.close();
 		}
 	}

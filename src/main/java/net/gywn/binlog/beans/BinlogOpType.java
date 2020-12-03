@@ -7,7 +7,7 @@ public enum BinlogOpType {
 	INS {
 		@Override
 		public void executeBinlogOperation(final BinlogTransaction binlogTransaction,
-				final BinlogOperation binlogOperation, final TargetHandler targetHandler) throws SQLException {
+				final BinlogOperation binlogOperation, final TargetHandler targetHandler) throws Exception {
 			for (final TargetTable targetTable : binlogOperation.getBinlogTable().getTargetTables()) {
 				TargetOperation targetOperation = new TargetOperation(targetTable, binlogOperation);
 				targetTable.getInsert().executeUpdate(binlogTransaction, targetOperation, targetHandler);
@@ -18,7 +18,7 @@ public enum BinlogOpType {
 	UPD {
 		@Override
 		public void executeBinlogOperation(final BinlogTransaction binlogTransaction,
-				final BinlogOperation binlogOperation, final TargetHandler targetHandler) throws SQLException {
+				final BinlogOperation binlogOperation, final TargetHandler targetHandler) throws Exception {
 			for (final TargetTable targetTable : binlogOperation.getBinlogTable().getTargetTables()) {
 				TargetOperation targetOperation = new TargetOperation(targetTable, binlogOperation);
 				targetTable.getUpdate().executeUpdate(binlogTransaction, targetOperation, targetHandler);
@@ -28,7 +28,7 @@ public enum BinlogOpType {
 	DEL {
 		@Override
 		public void executeBinlogOperation(final BinlogTransaction binlogTransaction,
-				final BinlogOperation binlogOperation, final TargetHandler targetHandler) throws SQLException {
+				final BinlogOperation binlogOperation, final TargetHandler targetHandler) throws Exception {
 			for (final TargetTable targetTable : binlogOperation.getBinlogTable().getTargetTables()) {
 				TargetOperation targetOperation = new TargetOperation(targetTable, binlogOperation);
 				targetTable.getDelete().executeUpdate(binlogTransaction, targetOperation, targetHandler);
@@ -38,11 +38,11 @@ public enum BinlogOpType {
 	NON {
 		@Override
 		public void executeBinlogOperation(final BinlogTransaction binlogTransaction,
-				final BinlogOperation binlogOperation, final TargetHandler targetHandler) throws SQLException {
+				final BinlogOperation binlogOperation, final TargetHandler targetHandler) throws Exception {
 		}
 	};
 
 	public abstract void executeBinlogOperation(final BinlogTransaction binlogTransaction,
-			final BinlogOperation binlogOperation, final TargetHandler targetHandler) throws SQLException;
+			final BinlogOperation binlogOperation, final TargetHandler targetHandler) throws Exception;
 
 }

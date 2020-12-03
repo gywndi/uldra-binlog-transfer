@@ -23,7 +23,7 @@ public class UldraMysqlApplier implements TargetHandler {
 	}
 
 	@Override
-	public void insert(final Connection connection, final TargetOperation operation) throws SQLException {
+	public void insert(final Connection connection, final TargetOperation operation) throws Exception {
 		logger.debug("insert {}", operation);
 
 		StringBuffer sbCol = new StringBuffer();
@@ -48,7 +48,7 @@ public class UldraMysqlApplier implements TargetHandler {
 	}
 
 	@Override
-	public void upsert(final Connection connection, final TargetOperation operation) throws SQLException {
+	public void upsert(final Connection connection, final TargetOperation operation) throws Exception {
 		logger.debug("insert {}", operation);
 
 		StringBuffer sbCol = new StringBuffer();
@@ -75,7 +75,7 @@ public class UldraMysqlApplier implements TargetHandler {
 	}
 
 	@Override
-	public void update(final Connection connection, final TargetOperation operation) throws SQLException {
+	public void update(final Connection connection, final TargetOperation operation) throws Exception {
 		logger.debug("update {}", operation);
 
 		StringBuffer sbSet = new StringBuffer();
@@ -108,7 +108,7 @@ public class UldraMysqlApplier implements TargetHandler {
 	}
 
 	@Override
-	public void delete(final Connection connection, final TargetOperation operation) throws SQLException {
+	public void delete(final Connection connection, final TargetOperation operation) throws Exception {
 		logger.debug("delete {}", operation);
 
 		StringBuffer sbWhe = new StringBuffer();
@@ -129,7 +129,7 @@ public class UldraMysqlApplier implements TargetHandler {
 	}
 
 	@Override
-	public void softdel(final Connection connection, final TargetOperation operation) throws SQLException {
+	public void softdel(final Connection connection, final TargetOperation operation) throws Exception {
 		logger.debug("softdel {}", operation);
 
 		StringBuffer sbSet = new StringBuffer();
@@ -160,26 +160,26 @@ public class UldraMysqlApplier implements TargetHandler {
 	}
 
 	@Override
-	public void begin(final Connection connection) throws SQLException {
+	public void begin(final Connection connection) throws Exception {
 		logger.debug("begin");
 		connection.prepareStatement("begin").execute();
 
 	}
 
 	@Override
-	public void commit(final Connection connection) throws SQLException {
+	public void commit(final Connection connection) throws Exception {
 		logger.debug("commit");
 		connection.prepareStatement("commit").execute();
 	}
 
 	@Override
-	public void rollback(final Connection connection) throws SQLException {
+	public void rollback(final Connection connection) throws Exception {
 		logger.debug("rollback");
 		connection.prepareStatement("rollback").execute();
 	}
 
 	private static void executeUpdate(final Connection connection, final String sql, final List<String> params)
-			throws SQLException {
+			throws Exception {
 		logger.debug("{}, {}", sql, params);
 		PreparedStatement pstmt = connection.prepareStatement(sql);
 		int seq = 1;

@@ -51,7 +51,6 @@ public class TargetTable {
 		if (replicatPolicy.isUpsertMode()) {
 			logger.debug("{} set upsert mode}", name, columnMapper);
 			insert = TargetOpType.UPSERT;
-			update = TargetOpType.UPSERT;
 		}
 
 		// change soft delete

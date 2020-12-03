@@ -13,7 +13,14 @@ public enum TargetOpType {
 	INSERT {
 		@Override
 		public void executeUpdate(final BinlogTransaction binlogTransaction, final TargetOperation targetOperation,
-				final TargetHandler targetHandler) throws SQLException {
+				final TargetHandler targetHandler) throws Exception {
+
+			// check data map if empty
+			if (targetOperation.getDatMap().isEmpty()) {
+				logger.debug("TargetOpType->INSERT->NO_DATA {}", targetOperation);
+				return;
+			}
+
 			if (binlogTransaction.isRecovering()) {
 				logger.debug("TargetOpType->INSERT->UPSERT");
 				targetHandler.upsert(binlogTransaction.getConnection(), targetOperation);
@@ -26,7 +33,20 @@ public enum TargetOpType {
 	UPDATE {
 		@Override
 		public void executeUpdate(final BinlogTransaction binlogTransaction, final TargetOperation targetOperation,
-				final TargetHandler targetHandler) throws SQLException {
+				final TargetHandler targetHandler) throws Exception {
+
+			// check data map if empty
+			if (targetOperation.getDatMap().isEmpty()) {
+				logger.debug("TargetOpType->INSERT->NO_DATA {}", targetOperation);
+				return;
+			}
+
+			// check key map if empty
+			if (targetOperation.getKeyMap().isEmpty()) {
+				logger.debug("TargetOpType->INSERT->NO_ROWKEY {}", targetOperation);
+				return;
+			}
+
 			logger.debug("TargetOpType->UPDATE");
 			targetHandler.update(binlogTransaction.getConnection(), targetOperation);
 		}
@@ -34,7 +54,14 @@ public enum TargetOpType {
 	UPSERT {
 		@Override
 		public void executeUpdate(final BinlogTransaction binlogTransaction, final TargetOperation targetOperation,
-				final TargetHandler targetHandler) throws SQLException {
+				final TargetHandler targetHandler) throws Exception {
+
+			// check data map if empty
+			if (targetOperation.getDatMap().isEmpty()) {
+				logger.debug("TargetOpType->INSERT->NO_DATA {}", targetOperation);
+				return;
+			}
+
 			logger.debug("TargetOpType->UPSERT");
 			targetHandler.upsert(binlogTransaction.getConnection(), targetOperation);
 		}
@@ -42,7 +69,14 @@ public enum TargetOpType {
 	DELETE {
 		@Override
 		public void executeUpdate(final BinlogTransaction binlogTransaction, final TargetOperation targetOperation,
-				final TargetHandler targetHandler) throws SQLException {
+				final TargetHandler targetHandler) throws Exception {
+
+			// check key map if empty
+			if (targetOperation.getKeyMap().isEmpty()) {
+				logger.debug("TargetOpType->INSERT->NO_ROWKEY {}", targetOperation);
+				return;
+			}
+
 			logger.debug("TargetOpType->DELETE");
 			targetHandler.delete(binlogTransaction.getConnection(), targetOperation);
 		}
@@ -50,7 +84,7 @@ public enum TargetOpType {
 	SOFT_DELETE {
 		@Override
 		public void executeUpdate(final BinlogTransaction binlogTransaction, final TargetOperation targetOperation,
-				final TargetHandler targetHandler) throws SQLException {
+				final TargetHandler targetHandler) throws Exception {
 			logger.debug("TargetOpType->SOFT_DELETE");
 			Map<String, String> keyMap = targetOperation.getKeyMap();
 			Map<String, String> datMap = targetOperation.getDatMap();
@@ -68,7 +102,7 @@ public enum TargetOpType {
 	private static final Logger logger = LoggerFactory.getLogger(TargetOpType.class);
 
 	public abstract void executeUpdate(final BinlogTransaction binlogTransaction, final TargetOperation targetOperation,
-			final TargetHandler targetHandler) throws SQLException;
+			final TargetHandler targetHandler) throws Exception;
 
 //	private static final String INSERT = "insert %s into %s (%s) values (%s)";
 //	private static final String UPSERT = "insert ignore into %s (%s) values (%s) on duplicate key update %s";
