@@ -1,18 +1,19 @@
 package net.gywn.binlog.beans;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import io.prometheus.client.Summary;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import net.gywn.binlog.common.UldraUtil;
 
 @Getter
 @ToString
 public class BinlogOperation {
+	private static final Logger logger = LoggerFactory.getLogger(BinlogOperation.class);
 	private final BinlogTable binlogTable;
 	private final BinlogOpType binlogOpType;
 	private final Map<String, String> datMap = new HashMap<String, String>();
@@ -29,7 +30,9 @@ public class BinlogOperation {
 
 	public void modify() {
 		if (!modified) {
+			logger.debug("modify->before {}", this);
 			binlogTable.getRowHandler().modify(this);
+			logger.debug("modify->after  {}", this);
 		}
 		modified = true;
 	}

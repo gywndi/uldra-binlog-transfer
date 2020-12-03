@@ -1,4 +1,4 @@
-workerCount: 16
+workerCount: 4
 wokerQueueSize: 500
 exporterPort: 42000
 
@@ -13,7 +13,7 @@ binlogPolicies:
   partitionKey: userid
   replicatPolicies:
   - name: "t_user"
-    softDelete: true
+    #softDelete: true
     upsertMode: true
   - name: "t_user1"
     softDelete: true

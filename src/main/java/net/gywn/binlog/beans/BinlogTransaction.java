@@ -4,6 +4,9 @@ import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -11,6 +14,8 @@ import lombok.ToString;
 @Getter
 @ToString
 public class BinlogTransaction implements AutoCloseable {
+	private static final Logger logger = LoggerFactory.getLogger(BinlogTransaction.class);
+	
 	private final List<BinlogOperation> binlogOperations = new ArrayList<BinlogOperation>();
 	private final String position;
 	private final Binlog binlog;
@@ -27,7 +32,9 @@ public class BinlogTransaction implements AutoCloseable {
 	}
 
 	public void addOperation(final BinlogOperation binlogOperation) {
+		logger.debug("Add operation - {}", binlogOperation);
 		if (!transactional && binlogOperation.getBinlogTable().getTargetTables().size() > 1) {
+			logger.debug("Set transactional");
 			transactional = true;
 		}
 		binlogOperations.add(binlogOperation);

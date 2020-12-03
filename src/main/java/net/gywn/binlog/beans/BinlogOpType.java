@@ -1,18 +1,6 @@
 package net.gywn.binlog.beans;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import javax.sql.DataSource;
-
 import net.gywn.binlog.api.TargetHandler;
 
 public enum BinlogOpType {
@@ -51,7 +39,6 @@ public enum BinlogOpType {
 		@Override
 		public void executeBinlogOperation(final BinlogTransaction binlogTransaction,
 				final BinlogOperation binlogOperation, final TargetHandler targetHandler) throws SQLException {
-			// do nothing
 		}
 	};
 

@@ -2,12 +2,16 @@ package net.gywn.binlog;
 
 import java.util.concurrent.Callable;
 
-import net.gywn.binlog.beans.Binlog;
+import org.apache.log4j.PropertyConfigurator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import net.gywn.binlog.common.UldraConfig;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
 public class Main implements Callable<Integer> {
+	private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
 	@Option(names = { "--config-file" }, description = "Config file", required = true)
 	private String configFile;
@@ -21,22 +25,35 @@ public class Main implements Callable<Integer> {
 	@Option(names = { "--binlog-info" }, description = "Binlog position info", required = false)
 	private String binlogInfo;
 
+	static {
+		try {
+			String loggingConfigFile = System.getProperty("java.util.logging.config.file");
+			if(loggingConfigFile == null) {
+				loggingConfigFile = "log4j.properties";
+			}
+			PropertyConfigurator.configure(loggingConfigFile);
+		} catch (Exception e) {
+		}
+	}
+
 	public static void main(String[] args) {
+
 		Main main = new Main();
 		if (args.length == 0) {
-//			args = new String[] { "--config-file", "uldra-config.yml", "--binlog-info", "binlog.000001:155,binlog.000001:14483" };
 			args = new String[] { "--config-file", "uldra-config.yml" };
 		}
 		Integer exitCode = new CommandLine(main).execute(args);
 
 		if (exitCode != 0) {
-			System.exit(exitCode);
+			logger.error("exit code: {}", exitCode);
 		}
 	}
 
 	@Override
 	public Integer call() {
+
 		try {
+			logger.info("Load from {}", configFile);
 			UldraConfig uldraConfig = UldraConfig.loadUldraConfig(configFile);
 			if (workerCount != null) {
 				uldraConfig.setWorkerCount(workerCount);
@@ -47,15 +64,14 @@ public class Main implements Callable<Integer> {
 			if (binlogInfo != null) {
 				uldraConfig.modifyBinlogFile(binlogInfo);
 			}
-
 			uldraConfig.init();
-			System.out.println("Config: " + uldraConfig);
 
+			logger.info(uldraConfig.toString());
 			BinlogEventHandler binlogEventHandler = new BinlogEventHandler(uldraConfig);
 			binlogEventHandler.start();
 
 		} catch (Exception e) {
-			System.out.println(e);
+			logger.error(e.getMessage());
 			return 1;
 		}
 		return 0;

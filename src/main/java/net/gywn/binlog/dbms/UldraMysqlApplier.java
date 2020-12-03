@@ -1,8 +1,5 @@
 package net.gywn.binlog.dbms;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -10,24 +7,25 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 
-import javax.sql.DataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import lombok.Getter;
-import lombok.Setter;
 import net.gywn.binlog.api.TargetHandler;
-import net.gywn.binlog.beans.BinlogOperation;
 import net.gywn.binlog.beans.TargetOperation;
 import net.gywn.binlog.common.UldraConfig;
 
 public class UldraMysqlApplier implements TargetHandler {
+	private static final Logger logger = LoggerFactory.getLogger(UldraMysqlApplier.class);
 
 	@Override
 	public void init(final UldraConfig uldraConfig) throws Exception {
-		System.out.println(this.getClass().getName() + " => initalized");
+		logger.info("UldraMysqlApplier->init()");
 	}
 
 	@Override
 	public void insert(final Connection connection, final TargetOperation operation) throws SQLException {
+		logger.debug("insert {}", operation);
+
 		StringBuffer sbCol = new StringBuffer();
 		StringBuffer sbVal = new StringBuffer();
 		List<String> params = new ArrayList<String>();
@@ -45,14 +43,14 @@ public class UldraMysqlApplier implements TargetHandler {
 
 		String sql = String.format("insert into %s (%s) values (%s)\n", operation.getTableName(), sbCol.toString(),
 				sbVal.toString());
-//		System.out.println("UldraMysqlApplier=>insert");
-//		System.out.printf(">> " + sql);
-		executeUpdate(connection, sql, params);
 
+		executeUpdate(connection, sql, params);
 	}
 
 	@Override
 	public void upsert(final Connection connection, final TargetOperation operation) throws SQLException {
+		logger.debug("insert {}", operation);
+
 		StringBuffer sbCol = new StringBuffer();
 		StringBuffer sbVal = new StringBuffer();
 		StringBuffer sbDup = new StringBuffer();
@@ -73,13 +71,13 @@ public class UldraMysqlApplier implements TargetHandler {
 
 		String sql = String.format("insert ignore into %s (%s) values (%s) on duplicate key update %s\n",
 				operation.getTableName(), sbCol.toString(), sbVal.toString(), sbDup.toString());
-//		System.out.println("UldraMysqlApplier=>upsert");
-//		System.out.printf(">> " + sql);
 		executeUpdate(connection, sql, params);
 	}
 
 	@Override
 	public void update(final Connection connection, final TargetOperation operation) throws SQLException {
+		logger.debug("update {}", operation);
+
 		StringBuffer sbSet = new StringBuffer();
 		StringBuffer sbWhe = new StringBuffer();
 		List<String> params = new ArrayList<String>();
@@ -105,14 +103,14 @@ public class UldraMysqlApplier implements TargetHandler {
 
 		String sql = String.format("update ignore %s set %s where 1=1 %s\n", operation.getTableName(), sbSet.toString(),
 				sbWhe.toString());
-//		System.out.println("UldraMysqlApplier=>update");
-//		System.out.printf(">> " + sql);
 		executeUpdate(connection, sql, params);
 
 	}
 
 	@Override
 	public void delete(final Connection connection, final TargetOperation operation) throws SQLException {
+		logger.debug("delete {}", operation);
+
 		StringBuffer sbWhe = new StringBuffer();
 		List<String> params = new ArrayList<String>();
 
@@ -127,13 +125,13 @@ public class UldraMysqlApplier implements TargetHandler {
 		}
 
 		String sql = String.format("delete ignore from %s where 1=1 %s\n", operation.getTableName(), sbWhe.toString());
-//		System.out.println("UldraMysqlApplier=>delete");
-//		System.out.printf(">> " + sql);
 		executeUpdate(connection, sql, params);
 	}
 
 	@Override
 	public void softdel(final Connection connection, final TargetOperation operation) throws SQLException {
+		logger.debug("softdel {}", operation);
+
 		StringBuffer sbSet = new StringBuffer();
 		StringBuffer sbWhe = new StringBuffer();
 		List<String> params = new ArrayList<String>();
@@ -158,39 +156,37 @@ public class UldraMysqlApplier implements TargetHandler {
 
 		String sql = String.format("update ignore %s set %s where 1=1 %s\n", operation.getTableName(), sbSet.toString(),
 				sbWhe.toString());
-//		System.out.println("UldraMysqlApplier=>softdel");
-//		System.out.printf(">> " + sql);
 		executeUpdate(connection, sql, params);
 	}
 
 	@Override
 	public void begin(final Connection connection) throws SQLException {
-//		connection.setAutoCommit(false);
+		logger.debug("begin");
 		connection.prepareStatement("begin").execute();
 
 	}
 
 	@Override
 	public void commit(final Connection connection) throws SQLException {
-//		connection.commit();
+		logger.debug("commit");
 		connection.prepareStatement("commit").execute();
 	}
 
 	@Override
 	public void rollback(final Connection connection) throws SQLException {
-//		connection.rollback();
+		logger.debug("rollback");
 		connection.prepareStatement("rollback").execute();
 	}
 
 	private static void executeUpdate(final Connection connection, final String sql, final List<String> params)
 			throws SQLException {
+		logger.debug("{}, {}", sql, params);
 		PreparedStatement pstmt = connection.prepareStatement(sql);
 		int seq = 1;
 		for (String param : params) {
 			pstmt.setString(seq++, param);
 		}
 		pstmt.executeUpdate();
-//		System.out.println(pstmt);
 		pstmt.close();
 
 	}

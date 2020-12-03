@@ -1,17 +1,11 @@
 package net.gywn.binlog.beans;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import javax.sql.DataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.gywn.binlog.api.TargetHandler;
 
@@ -21,9 +15,11 @@ public enum TargetOpType {
 		public void executeUpdate(final BinlogTransaction binlogTransaction, final TargetOperation targetOperation,
 				final TargetHandler targetHandler) throws SQLException {
 			if (binlogTransaction.isRecovering()) {
+				logger.debug("TargetOpType->INSERT->UPSERT");
 				targetHandler.upsert(binlogTransaction.getConnection(), targetOperation);
 				return;
 			}
+			logger.debug("TargetOpType->INSERT");
 			targetHandler.insert(binlogTransaction.getConnection(), targetOperation);
 		}
 	},
@@ -31,6 +27,7 @@ public enum TargetOpType {
 		@Override
 		public void executeUpdate(final BinlogTransaction binlogTransaction, final TargetOperation targetOperation,
 				final TargetHandler targetHandler) throws SQLException {
+			logger.debug("TargetOpType->UPDATE");
 			targetHandler.update(binlogTransaction.getConnection(), targetOperation);
 		}
 	},
@@ -38,6 +35,7 @@ public enum TargetOpType {
 		@Override
 		public void executeUpdate(final BinlogTransaction binlogTransaction, final TargetOperation targetOperation,
 				final TargetHandler targetHandler) throws SQLException {
+			logger.debug("TargetOpType->UPSERT");
 			targetHandler.upsert(binlogTransaction.getConnection(), targetOperation);
 		}
 	},
@@ -45,6 +43,7 @@ public enum TargetOpType {
 		@Override
 		public void executeUpdate(final BinlogTransaction binlogTransaction, final TargetOperation targetOperation,
 				final TargetHandler targetHandler) throws SQLException {
+			logger.debug("TargetOpType->DELETE");
 			targetHandler.delete(binlogTransaction.getConnection(), targetOperation);
 		}
 	},
@@ -52,6 +51,7 @@ public enum TargetOpType {
 		@Override
 		public void executeUpdate(final BinlogTransaction binlogTransaction, final TargetOperation targetOperation,
 				final TargetHandler targetHandler) throws SQLException {
+			logger.debug("TargetOpType->SOFT_DELETE");
 			Map<String, String> keyMap = targetOperation.getKeyMap();
 			Map<String, String> datMap = targetOperation.getDatMap();
 			for (Entry<String, String> entry : targetOperation.getTargetTable().getColumnMapper().entrySet()) {
@@ -64,6 +64,8 @@ public enum TargetOpType {
 			targetHandler.softdel(binlogTransaction.getConnection(), targetOperation);
 		}
 	};
+
+	private static final Logger logger = LoggerFactory.getLogger(TargetOpType.class);
 
 	public abstract void executeUpdate(final BinlogTransaction binlogTransaction, final TargetOperation targetOperation,
 			final TargetHandler targetHandler) throws SQLException;

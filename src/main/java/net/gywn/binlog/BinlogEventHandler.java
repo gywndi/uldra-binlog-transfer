@@ -132,6 +132,7 @@ public class BinlogEventHandler {
 			try {
 				binlogServerPort = Integer.parseInt(binlogServerInfo[1]);
 			} catch (Exception e) {
+				logger.info("Binlog server port not defined, set {}", binlogServerPort);
 			}
 
 			binaryLogClient = new BinaryLogClient(binlogServerUrl, binlogServerPort, binlogServerUsername,
@@ -143,7 +144,7 @@ public class BinlogEventHandler {
 			registerEventListener();
 			registerLifecycleListener();
 
-			Binlog sourceBinlog = getCurrentBinlog();
+			Binlog currentServerBinlog = getCurrentBinlog();
 
 			// ============================
 			// load binlog position
@@ -152,22 +153,17 @@ public class BinlogEventHandler {
 				Binlog[] binlogs = Binlog.read(binlogInfoFile);
 				currntBinlog = binlogs[0];
 				targetBinlog = binlogs[1];
-				logger.info("Binlog pos from file: " + currntBinlog);
 			} catch (Exception e) {
-				currntBinlog = sourceBinlog;
-				logger.info("Parse binlog failed, set current position: " + sourceBinlog);
-			}
-
-			if (currntBinlog == null) {
-				currntBinlog = sourceBinlog;
+				logger.info("Start binlog position from {}", currentServerBinlog);
+				currntBinlog = currentServerBinlog;
 			}
 
 			if (targetBinlog == null) {
-				targetBinlog = sourceBinlog;
+				logger.info("Start binlog position from {}", currentServerBinlog);
+				targetBinlog = currentServerBinlog;
 			}
 
-			System.out.println("[start] " + currntBinlog.toString() + " [target] " + targetBinlog.toString());
-
+			logger.info("Replicator start from {} to {}", currntBinlog, targetBinlog);
 			binaryLogClient.setBinlogFilename(currntBinlog.getBinlogFile());
 			binaryLogClient.setBinlogPosition(currntBinlog.getBinlogPosition());
 
@@ -183,7 +179,7 @@ public class BinlogEventHandler {
 					binlogEventWorkers[i] = new BinlogEventWorker(i, uldraConfig);
 					binlogEventWorkers[i].start();
 				} catch (Exception e) {
-					logger.error(e.getMessage());
+					logger.error("Start binlog event worker[{}] failed - {}", i, e.getMessage());
 					System.exit(1);
 				}
 			}
@@ -202,13 +198,14 @@ public class BinlogEventHandler {
 								binlogList.add(binlog);
 							}
 						}
-
+						
+						int currentJobCount = getJobCount();
 						Binlog binlog = null, lastBinlog = null;
 						if (binlogList.size() > 0) {
 							Binlog[] binlogArray = new Binlog[binlogList.size()];
 							binlogList.toArray(binlogArray);
 							Arrays.sort(binlogArray);
-							binlog = binlogArray[0];
+							binlog = currentJobCount > 0 ? binlogArray[0]:binlogArray[binlogArray.length-1];
 							lastBinlog = currntBinlog;
 						}
 
@@ -218,8 +215,7 @@ public class BinlogEventHandler {
 						}
 
 						if (recovering && !isRecoveringPosition()) {
-							System.out.printf("finish recovering, [current]%s [target]%s\n", currntBinlog,
-									targetBinlog);
+							logger.info("Recover finished, target - {}", targetBinlog);
 							recovering = false;
 						}
 
@@ -227,14 +223,14 @@ public class BinlogEventHandler {
 						try {
 							Binlog.flush(binlog, lastBinlog, binlogInfoFile);
 						} catch (IOException e) {
-							System.out.println(e);
+							logger.debug("Flush failed - ", e);
 						}
 
 						UldraUtil.sleep(500);
 					}
 				}
 
-			}).start();
+			}, "uldra").start();
 			binaryLogClient.connect();
 
 		} catch (Exception e) {
@@ -256,24 +252,26 @@ public class BinlogEventHandler {
 	}
 
 	private void registerLifecycleListener() {
-
 		binaryLogClient.registerLifecycleListener(new LifecycleListener() {
 
 			public void onConnect(BinaryLogClient client) {
+				logger.info("mysql-binlog-connector start from {}:{}", client.getBinlogFilename(),
+						client.getBinlogPosition());
 				threadRunning = true;
 			}
 
 			public void onCommunicationFailure(BinaryLogClient client, Exception ex) {
-				logger.error(ex.toString());
+				logger.error("CommunicationFailure - {}", ex.getMessage());
 				threadRunning = false;
 			}
 
 			public void onEventDeserializationFailure(BinaryLogClient client, Exception ex) {
-				logger.error(ex.toString());
+				logger.error("EventDeserializationFailur - {}", ex.getMessage());
 				threadRunning = false;
 			}
 
 			public void onDisconnect(BinaryLogClient client) {
+				logger.info("Disconnect");
 				threadRunning = false;
 			}
 		});
@@ -281,17 +279,17 @@ public class BinlogEventHandler {
 	}
 
 	public void receiveWriteRowsEvent(final Event event) {
-
 		WriteRowsEventData eventData = (WriteRowsEventData) event.getData();
 		BinlogTable binlogTable = binlogTableMap.get(eventData.getTableId());
 
 		String keyStr = "";
 		if (!binlogTable.isTarget()) {
-			logger.debug(binlogTable.getName() + " is not target");
 			return;
 		}
 
 		BitSet bit = eventData.getIncludedColumns();
+
+		logger.debug("Binlog operation counts: {}", eventData.getRows().size());
 		for (Serializable[] row : eventData.getRows()) {
 			BinlogOperation binlogOperation = new BinlogOperation(binlogTable, BinlogOpType.INS);
 
@@ -319,6 +317,8 @@ public class BinlogEventHandler {
 			}
 
 			binlogOperation.setCrc32Code(UldraUtil.crc32(keyStr));
+			logger.debug("binlogOperation - {}", binlogOperation);
+
 			binlogTransaction.addOperation(binlogOperation);
 		}
 	}
@@ -329,13 +329,14 @@ public class BinlogEventHandler {
 
 		String keyStr = "";
 		if (!binlogTable.isTarget()) {
-			logger.debug(binlogTable.getName() + " is not target");
 			return;
 		}
 
 		int seq;
 		BitSet oldBit = eventData.getIncludedColumnsBeforeUpdate();
 		BitSet newBit = eventData.getIncludedColumns();
+
+		logger.debug("Binlog operation counts: {}", eventData.getRows().size());
 		for (Entry<Serializable[], Serializable[]> entry : eventData.getRows()) {
 			BinlogOperation binlogOperation = new BinlogOperation(binlogTable, BinlogOpType.UPD);
 
@@ -367,6 +368,7 @@ public class BinlogEventHandler {
 						if (binlogOperation.getDatMap().containsKey(key)) {
 							String afterValue = binlogOperation.getDatMap().get(key);
 							if (afterValue != null && !afterValue.equals(value)) {
+								logger.debug("Partition key changed, `{}`->`{}`", value, afterValue);
 								isPartitionKeyChanged = true;
 							}
 						}
@@ -377,6 +379,8 @@ public class BinlogEventHandler {
 			}
 
 			binlogOperation.setCrc32Code(UldraUtil.crc32(keyStr));
+			logger.debug("binlogOperation - {}", binlogOperation);
+
 			binlogTransaction.addOperation(binlogOperation);
 
 		}
@@ -388,11 +392,12 @@ public class BinlogEventHandler {
 
 		String keyStr = "";
 		if (!binlogTable.isTarget()) {
-			logger.debug(binlogTable.getName() + " is not target");
 			return;
 		}
 
 		BitSet bit = eventData.getIncludedColumns();
+
+		logger.debug("Binlog operation counts: {}", eventData.getRows().size());
 		for (Serializable[] row : eventData.getRows()) {
 			BinlogOperation binlogOperation = new BinlogOperation(binlogTable, BinlogOpType.DEL);
 
@@ -414,43 +419,46 @@ public class BinlogEventHandler {
 			}
 
 			binlogOperation.setCrc32Code(UldraUtil.crc32(keyStr));
+			logger.debug("binlogOperation - {}", binlogOperation);
+
 			binlogTransaction.addOperation(binlogOperation);
 		}
 	}
 
 	public void receiveTableMapEvent(final Event event) {
-
 		TableMapEventData eventData = (TableMapEventData) event.getData();
 
 		if (binlogTableMap.containsKey(eventData.getTableId())) {
-			logger.debug(eventData.getTableId() + " exists in cache");
 			return;
 		}
 
-		// get table info from database
-		logger.info(eventData.getTable() + ":" + eventData.getTableId() + " not in cache");
-		BinlogTable binlogTable = getBinlogTable(eventData);
+		logger.info("Meta info for TABLE_ID_{} is not in cache (`{}`.`{}`)", eventData.getTableId(),
+				eventData.getDatabase(), eventData.getTable());
+		binlogTableMap.put(eventData.getTableId(), getBinlogTable(eventData));
+		BinlogTable binlogTable = binlogTableMap.get(eventData.getTableId());
 
-		// remove cache same full name (db.tb)
+		if (!binlogTable.isTarget()) {
+			logger.info("Skip `{}`.`{}`, not target", eventData.getDatabase(), eventData.getTable());
+			return;
+		}
+
+		logger.info("Remove legacy meta info for `{}`.`{}`", eventData.getDatabase(), eventData.getTable());
 		for (Entry<Long, BinlogTable> entry : binlogTableMap.entrySet()) {
-			if (entry.getValue().getName().equals(binlogTable.getName())) {
+			if (entry.getKey() != eventData.getTableId() && entry.getValue().getName().equals(binlogTable.getName())) {
 				binlogTableMap.remove(entry.getKey());
 				break;
 			}
 		}
-
-		// add cache entry
-		binlogTableMap.put(eventData.getTableId(), binlogTable);
 	}
 
 	public void receiveRotateEvent(final Event event) {
 		RotateEventData eventData = (RotateEventData) event.getData();
 		currntBinlog.setBinlogFile(eventData.getBinlogFilename());
 		currntBinlog.setBinlogPosition(eventData.getBinlogPosition());
+		logger.info("Binlog rotated - {}", currntBinlog);
 	}
 
 	public void receiveQueryEvent(final Event event) {
-
 		EventHeaderV4 header = event.getHeader();
 		currntBinlog.setBinlogPosition(header.getPosition());
 
@@ -476,60 +484,74 @@ public class BinlogEventHandler {
 	}
 
 	private void transactionStart() {
+		logger.debug("transactionStart =====>");
+
 		if (binlogTransaction == null) {
+			logger.debug("create binlogTransaction");
 			binlogTransaction = new BinlogTransaction(currntBinlog.toString(), recovering);
 		}
 	}
 
 	private void transactionEnd() {
+		logger.debug("transactionEnd");
+
 		try {
-			// ======================================
+
+			// =======================================
 			// Empty transaction
-			// ======================================
+			// =======================================
 			if (binlogTransaction.size() == 0) {
+				logger.debug("No operation");
 				return;
 			}
 
-			// ======================================
+			// =======================================
 			// single operation
-			// ======================================
+			// =======================================
 			if (binlogTransaction.size() == 1) {
 				BinlogOperation binlogOperation = binlogTransaction.getBinlogOperations().get(0);
 				int slot = (int) (binlogOperation.getCrc32Code() % uldraConfig.getWorkerCount());
+
+				logger.debug("Single operation, slot {} - {}", slot, binlogOperation);
 				binlogEventWorkers[slot].enqueue(binlogTransaction);
 				return;
 			}
 
-			// ======================================
+			// =======================================
 			// partiton key has been changed
-			// ======================================
+			// =======================================
 			if (isPartitionKeyChanged) {
+				logger.debug("Partition key changed, single transaction processiong");
 				waitJobProcessing();
 				binlogEventWorkers[0].enqueue(binlogTransaction);
 				waitJobProcessing();
 				return;
 			}
 
-			// ======================================
-			// mulit operations in single transaction
-			// ======================================
+			// =======================================
+			// transction -> mini-trx by partition key
+			// =======================================
 			miniTransactions.clear();
-			for (final BinlogOperation operation : binlogTransaction.getBinlogOperations()) {
-				int slot = (int) (operation.getCrc32Code() % uldraConfig.getWorkerCount());
+			for (final BinlogOperation binlogOperation : binlogTransaction.getBinlogOperations()) {
+				logger.debug("Partition key changed");
+				int slot = (int) (binlogOperation.getCrc32Code() % uldraConfig.getWorkerCount());
 
 				// new mini trx if not exists in trx map
 				if (!miniTransactions.containsKey(slot)) {
+					logger.debug("Create new mini-trx slot: {}", slot);
 					miniTransactions.put(slot, new BinlogTransaction(binlogTransaction.getPosition(), recovering));
 				}
 
 				// add operation in mini trx
-				miniTransactions.get(slot).addOperation(operation);
+				logger.debug("Add operation in mini-trx slot {} - {}", slot, binlogOperation);
+				miniTransactions.get(slot).addOperation(binlogOperation);
 			}
 
 			// ======================================
 			// enqueue mini transactions
 			// ======================================
 			for (final Entry<Integer, BinlogTransaction> entry : miniTransactions.entrySet()) {
+				logger.debug("Enqueue mini-trx {}", entry.getKey());
 				binlogEventWorkers[entry.getKey()].enqueue(entry.getValue());
 			}
 		} finally {
@@ -540,24 +562,29 @@ public class BinlogEventHandler {
 
 	private boolean isRecoveringPosition() {
 		if (targetBinlog.compareTo(currntBinlog) > 0) {
+			logger.debug("Recovering position [current]{} [target]{}", currntBinlog, targetBinlog);
 			return true;
 		}
+		logger.debug("Recovering mode false");
+
 		return false;
 	}
 
 	private Binlog getCurrentBinlog() throws SQLException {
-
 		Connection connection = null;
+		Binlog binlogServerBinlog = null;
 		try {
 			connection = binlogDataSource.getConnection();
 			String query = "show master status";
 			PreparedStatement pstmt = connection.prepareStatement(query);
 			ResultSet rs = pstmt.executeQuery();
 			if (rs.next()) {
-				return new Binlog(rs.getString("File"), rs.getLong("Position"));
+				binlogServerBinlog = new Binlog(rs.getString("File"), rs.getLong("Position"));
+				return binlogServerBinlog;
 			}
 			pstmt.close();
 		} finally {
+			logger.debug("Current binlog position from binlog server: {}", binlogServerBinlog);
 			try {
 				connection.close();
 			} catch (Exception e) {
@@ -567,6 +594,8 @@ public class BinlogEventHandler {
 	}
 
 	private BinlogTable getBinlogTable(final TableMapEventData tableMapEventData) {
+		logger.debug("Get meta info from database for {}", tableMapEventData);
+
 		// Binlog policy
 		String database = tableMapEventData.getDatabase().toLowerCase();
 		String table = tableMapEventData.getTable().toLowerCase();
@@ -642,13 +671,12 @@ public class BinlogEventHandler {
 
 			} catch (Exception e) {
 				logger.error(e.getMessage());
-				System.out.println(e);
 				UldraUtil.sleep(1000);
 			} finally {
 				try {
 					connection.close();
 				} catch (SQLException e) {
-					logger.error(e.toString());
+					logger.error(e.getMessage());
 				}
 			}
 		}
@@ -663,6 +691,7 @@ public class BinlogEventHandler {
 				break;
 			}
 
+			logger.debug("Sleep {}ms", sleepMS);
 			UldraUtil.sleep(sleepMS);
 			sleepMS *= 2;
 		}
@@ -673,6 +702,8 @@ public class BinlogEventHandler {
 		for (BinlogEventWorker worker : binlogEventWorkers) {
 			currentJobs += worker.getJobCount();
 		}
+
+		logger.debug("Current remain jobs {}", currentJobs);
 		return currentJobs;
 	}
 
@@ -760,7 +791,10 @@ public class BinlogEventHandler {
 		public abstract void receiveEvent(final Event event, final BinlogEventHandler binlogEventHandler);
 
 		public static BinlogEvent valuOf(EventType eventType) {
-			return map.get(eventType);
+			BinlogEvent binlogEvent = map.get(eventType);
+			logger.debug("=====================================");
+			logger.debug("{}->BinlogEvent.{}", eventType, binlogEvent);
+			return binlogEvent;
 		}
 
 	}
